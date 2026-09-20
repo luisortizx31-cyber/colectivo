@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <meta name="theme-color" content="#0b0f14">
   <meta name="color-scheme" content="dark">
   <meta name="description" content="Registro de cobros del colectivo: efectivo y Yape.">
@@ -67,10 +67,11 @@
         </div>
 
         <div class="cards">
-          <div class="card card-total">
-            <span class="card-etq">Total del día</span>
-            <strong id="dia-total">S/ 0.00</strong>
-            <small id="dia-pasajeros">0 pasajeros</small>
+          <div class="card card-total" id="card-ganancia">
+            <span class="card-etq">Ganancia del día</span>
+            <strong id="dia-ganancia">S/ 0.00</strong>
+            <div class="cuenta-fila"><span>Cobrado · <span id="dia-pasajeros">0 pasajeros</span></span><b id="dia-total">S/ 0.00</b></div>
+            <div class="cuenta-fila"><span>Gastos</span><b id="dia-gastos-resta">S/ 0.00</b></div>
           </div>
           <div class="card">
             <span class="card-etq"><i class="punto p-efectivo"></i>Efectivo</span>
@@ -85,6 +86,16 @@
         </div>
 
         <div class="chips" id="dia-destinos"></div>
+
+        <section class="gastos" aria-labelledby="gastos-tit">
+          <div class="gastos-cab">
+            <h3 id="gastos-tit">Gastos del día</h3>
+            <strong id="gastos-total">S/ 0.00</strong>
+          </div>
+          <ul class="gastos-lista" id="gastos-lista"></ul>
+          <p class="gastos-vacio" id="gastos-vacio">Sin gastos este día. Anota la gasolina o el gas para ver tu ganancia real.</p>
+          <div class="gastos-botones" id="gastos-botones"></div>
+        </section>
 
         <div class="borrar-fila" id="borrar-fila">
           <button type="button" class="btn-borrar" id="btn-borrar-dia">Borrar este día</button>
@@ -128,14 +139,14 @@
             <span class="fila-txt">Actualizar la app<small>Hay una versión nueva. Toca para cargarla</small></span>
           </button>
           <button type="button" class="fila-btn" id="btn-copia">
-            <span class="fila-txt">Guardar copia de seguridad<small>Un archivo con tus cobros y tarifas, para guardarlo en Drive o enviártelo por WhatsApp</small></span>
+            <span class="fila-txt">Guardar copia de seguridad<small>Un archivo con tus cobros, gastos y tarifas, para guardarlo en Drive o enviártelo por WhatsApp</small></span>
           </button>
           <button type="button" class="fila-btn" id="btn-restaurar">
             <span class="fila-txt">Restaurar copia de seguridad<small>Desde un archivo que guardaste antes</small></span>
           </button>
-          <button type="button" class="fila-btn" id="btn-csv">Exportar cobros (Excel / CSV)</button>
+          <button type="button" class="fila-btn" id="btn-csv">Exportar cobros y gastos (Excel / CSV)</button>
           <button type="button" class="fila-btn" id="btn-instalar" hidden>Instalar en la pantalla de inicio</button>
-          <button type="button" class="fila-btn peligro" id="btn-borrar">Borrar todos los cobros</button>
+          <button type="button" class="fila-btn peligro" id="btn-borrar">Borrar todo el historial</button>
         </div>
         <p class="estado-copia" id="copia-estado"></p>
         <input type="file" id="archivo-copia" accept=".json,application/json" hidden>

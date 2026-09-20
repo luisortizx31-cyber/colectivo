@@ -1,7 +1,7 @@
 /* Service worker: deja la app funcionando sin internet.
    IMPORTANTE: cada vez que cambies index.html, styles.css o app.js, sube el número de VERSION
    para que los teléfonos descarguen la versión nueva. */
-const VERSION = 'colectivo-v3';
+const VERSION = 'colectivo-v4';
 const ARCHIVOS = [
   './',
   'index.html',

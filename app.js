@@ -30,6 +30,7 @@ function reemplazarHijos(el, hijos) {
 const pad = n => String(n).padStart(2, '0');
 const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`;
 const soles = cent => 'S/ ' + (cent / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const solesConSigno = cent => (cent < 0 ? '−' + soles(-cent) : soles(cent));
 const nombreMetodo = m => (m === 'yape' ? 'Yape' : 'Efectivo');
 const descripcion = c => soles(c.monto) + (c.etiqueta ? ' · ' + c.etiqueta : '');
 
@@ -43,6 +44,8 @@ const claveDia = ts => claveDe(new Date(ts));
 const fechaDe = clave => { const [y, m, d] = clave.split('-').map(Number); return new Date(y, m - 1, d, 12); };
 const sumarDias = (clave, n) => { const d = fechaDe(clave); d.setDate(d.getDate() + n); return claveDe(d); };
 const fechaTexto = clave => { const d = fechaDe(clave); return `${DIAS[d.getDay()]} ${d.getDate()} ${MESES[d.getMonth()]} ${d.getFullYear()}`; };
+/** "hoy", "ayer" o "el jue 17 sep 2026", para frases como "¿Cuánto gastaste hoy?". */
+const nombreDia = clave => (clave === hoyClave ? 'hoy' : clave === sumarDias(hoyClave, -1) ? 'ayer' : 'el ' + fechaTexto(clave));
 function horaDe(ts) {
   const d = new Date(ts), hh = d.getHours();
   return { hm: `${hh % 12 || 12}:${pad(d.getMinutes())}`, ampm: hh < 12 ? 'a. m.' : 'p. m.' };
@@ -58,7 +61,7 @@ function leerMonto(texto) {
 
 /* ───────────── Datos guardados en el teléfono ───────────── */
 
-const LS = { cobros: 'colectivo.cobros.v1', tarifas: 'colectivo.tarifas.v1', ajustes: 'colectivo.ajustes.v1' };
+const LS = { cobros: 'colectivo.cobros.v1', tarifas: 'colectivo.tarifas.v1', ajustes: 'colectivo.ajustes.v1', gastos: 'colectivo.gastos.v1' };
 
 function leer(clave) {
   try { const v = localStorage.getItem(clave); return v ? JSON.parse(v) : null; } catch (e) { return null; }
@@ -66,9 +69,11 @@ function leer(clave) {
 function guardar(clave, valor) {
   try { localStorage.setItem(clave, JSON.stringify(valor)); return true; } catch (e) { return false; }
 }
+const avisarSinEspacio = () => toast('No se pudo guardar: el teléfono no tiene espacio. Guarda una copia de seguridad.', [], { ms: 9000 });
 
 const TARIFAS_INICIALES = [
   { id: 'centro', monto: 350, etiqueta: 'Centro', grande: true },
+  { id: 'terminal', monto: 300, etiqueta: 'Terminal', grande: true },
   { id: 'villa-maria', monto: 250, etiqueta: 'Villa María', grande: true },
   { id: 'cerca', monto: 200, etiqueta: 'Cerca', grande: true },
   { id: 'extra-150', monto: 150, etiqueta: '', grande: false },
@@ -81,8 +86,22 @@ function limpiarTarifas(g) {
   return g.map(t => ({ id: t.id, monto: t.monto, etiqueta: String(t.etiqueta || ''), grande: !!t.grande }));
 }
 
+// Los ajustes se leen antes que las tarifas porque cargarTarifas() los usa.
+const ajustes = Object.assign({ vibracion: true, sonido: true, pantalla: true, volverEfectivo: true, ultimaCopia: 0, terminalAgregada: false }, leer(LS.ajustes));
+
 function cargarTarifas() {
-  return limpiarTarifas(leer(LS.tarifas)) || TARIFAS_INICIALES.map(t => Object.assign({}, t));
+  const guardadas = limpiarTarifas(leer(LS.tarifas));
+  const lista = guardadas || TARIFAS_INICIALES.map(t => Object.assign({}, t));
+  // "Terminal" (S/ 3.00) se sumó a las tarifas de fábrica: a quien ya tenía las suyas guardadas se le agrega una sola vez.
+  if (!ajustes.terminalAgregada) {
+    ajustes.terminalAgregada = true;
+    guardar(LS.ajustes, ajustes);
+    if (guardadas && !lista.some(t => t.monto === 300)) {
+      lista.push(Object.assign({}, TARIFAS_INICIALES.find(t => t.id === 'terminal')));
+      guardar(LS.tarifas, lista);
+    }
+  }
+  return lista;
 }
 
 // Cada cobro se guarda como [marcaDeTiempo, céntimos, 0|1 (1 = Yape), destino]: así ocupa poco espacio.
@@ -104,14 +123,44 @@ function cargarCobros() {
 }
 
 function guardarCobros() {
-  const ok = guardar(LS.cobros, cobros.map(cobroAFila));
-  if (!ok) toast('No se pudo guardar: el teléfono no tiene espacio. Guarda una copia de seguridad.', [], { ms: 9000 });
+  if (!guardar(LS.cobros, cobros.map(cobroAFila))) avisarSinEspacio();
 }
 const guardarTarifas = () => guardar(LS.tarifas, tarifas);
 
+// Gastos del carro (gasolina, gas…). Cada uno se guarda como [marcaDeTiempo, céntimos, tipo].
+// Para sumar otro tipo de gasto basta con agregarlo a esta lista.
+const TIPOS_GASTO = [
+  { id: 'gasolina', nombre: 'Gasolina' },
+  { id: 'gas', nombre: 'Gas' },
+];
+const nombreGasto = tipo => {
+  const t = TIPOS_GASTO.find(x => x.id === tipo);
+  return t ? t.nombre : String(tipo).charAt(0).toUpperCase() + String(tipo).slice(1);
+};
+
+const gastoAFila = g => [g.ts, g.monto, g.tipo];
+
+function filaAGasto(f) {
+  if (!Array.isArray(f) || !Number.isFinite(f[0]) || !Number.isInteger(f[1]) || f[1] <= 0 || typeof f[2] !== 'string' || !f[2]) return null;
+  return { ts: f[0], monto: f[1], tipo: f[2], dia: claveDia(f[0]) };
+}
+
+function filasAGastos(filas) {
+  return filas.map(filaAGasto).filter(Boolean).sort((a, b) => a.ts - b.ts);
+}
+
+function cargarGastos() {
+  const g = leer(LS.gastos);
+  return Array.isArray(g) ? filasAGastos(g) : [];
+}
+
+function guardarGastos() {
+  if (!guardar(LS.gastos, gastos.map(gastoAFila))) avisarSinEspacio();
+}
+
 let tarifas = cargarTarifas();
 let cobros = cargarCobros();                 // ordenados por hora, del más antiguo al más nuevo
-const ajustes = Object.assign({ vibracion: true, sonido: true, pantalla: true, volverEfectivo: true, ultimaCopia: 0 }, leer(LS.ajustes));
+let gastos = cargarGastos();                 // igual: del más antiguo al más nuevo
 
 let metodo = 'efectivo';                     // forma de pago con la que se registrará el siguiente cobro
 let vista = 'cobrar';
@@ -164,6 +213,32 @@ function resumir(lista) {
     t.n++;
   }
   return r;
+}
+
+/* ───────────── Operaciones sobre gastos ───────────── */
+
+/** Hora con la que se anota un gasto en el día que se está viendo: ahora si es hoy, o el mediodía de ese día. */
+const tsParaDia = clave => (clave === hoyClave ? Date.now() : fechaDe(clave).getTime());
+
+const sumar = lista => lista.reduce((suma, x) => suma + x.monto, 0);
+
+function agregarGasto({ monto, tipo, ts }) {
+  while (gastos.some(x => x.ts === ts)) ts++;
+  const g = { ts, monto, tipo, dia: claveDia(ts) };
+  gastos.push(g);
+  if (gastos.length > 1 && gastos[gastos.length - 2].ts > ts) gastos.sort((a, b) => a.ts - b.ts);
+  guardarGastos();
+  return g;
+}
+
+function quitarGasto(g) {
+  const i = gastos.indexOf(g);
+  if (i >= 0) { gastos.splice(i, 1); guardarGastos(); }
+}
+
+/** Gastos de un día, del más reciente al más antiguo. */
+function gastosDelDia(clave) {
+  return gastos.filter(g => g.dia === clave).reverse();
 }
 
 /* ───────────── Pantalla COBRAR ───────────── */
@@ -309,6 +384,9 @@ function renderCobros() {
   if (diaSel > hoyClave) diaSel = hoyClave;
   const lista = cobrosDelDia(diaSel);
   const r = resumir(lista);
+  const gastosDia = gastosDelDia(diaSel);
+  const totalGastos = sumar(gastosDia);
+  const ganancia = r.total - totalGastos;             // lo cobrado menos los gastos del día
 
   $('#dia-etq').textContent = diaSel === hoyClave ? 'Hoy' : diaSel === sumarDias(hoyClave, -1) ? 'Ayer' : DIAS_LARGO[fechaDe(diaSel).getDay()];
   $('#dia-fecha').textContent = fechaTexto(diaSel);
@@ -316,8 +394,11 @@ function renderCobros() {
   $('#dia-picker').max = hoyClave;
   $('#dia-next').disabled = diaSel >= hoyClave;
 
+  $('#dia-ganancia').textContent = solesConSigno(ganancia);
+  $('#card-ganancia').classList.toggle('negativa', ganancia < 0);
   $('#dia-total').textContent = soles(r.total);
   $('#dia-pasajeros').textContent = plural(r.n, 'pasajero', 'pasajeros');
+  $('#dia-gastos-resta').textContent = totalGastos ? '− ' + soles(totalGastos) : soles(0);
   $('#dia-efectivo').textContent = soles(r.efectivo);
   $('#dia-efectivo-n').textContent = plural(r.nEfectivo, 'cobro', 'cobros');
   $('#dia-yape').textContent = soles(r.yape);
@@ -325,6 +406,7 @@ function renderCobros() {
 
   const destinos = Object.keys(r.porTarifa).map(k => r.porTarifa[k]).sort((a, b) => b.monto - a.monto);
   reemplazarHijos($('#dia-destinos'), destinos.map(t => h('span', { class: 'chip-dest' }, h('b', null, t.n + '×'), ' ' + descripcion(t))));
+  renderGastos(gastosDia, totalGastos);
   reemplazarHijos($('#lista'), lista.map(filaCobro));
   const vacio = $('#vacio');
   vacio.hidden = lista.length > 0;
@@ -332,8 +414,59 @@ function renderCobros() {
     ? 'Aún no hay cobros hoy. Cada precio que toques en Cobrar aparecerá aquí con su hora.'
     : 'No hay cobros registrados este día.';
 
-  $('#borrar-fila').hidden = cobros.length === 0;            // sin historial no hay nada que borrar
-  $('#btn-borrar-dia').disabled = lista.length === 0;
+  $('#borrar-fila').hidden = cobros.length === 0 && gastos.length === 0;            // sin historial no hay nada que borrar
+  $('#btn-borrar-dia').disabled = lista.length === 0 && gastosDia.length === 0;
+}
+
+function renderGastos(lista, total) {
+  $('#gastos-total').textContent = soles(total);
+  $('#gastos-vacio').hidden = lista.length > 0;
+  reemplazarHijos($('#gastos-lista'), lista.map(g => h('li', null,
+    h('button', { type: 'button', class: 'gasto', onclick: () => abrirGasto(g) },
+      h('span', { class: 'gasto-nombre' }, h('i', { class: 'punto p-gasto' }), nombreGasto(g.tipo)),
+      h('strong', null, soles(g.monto))
+    )
+  )));
+}
+
+/** Anota un gasto (gasolina, gas…) en el día que se está viendo. */
+function nuevoGasto(tipo) {
+  const clave = diaSel;
+  abrirHoja(nombreGasto(tipo), `¿Cuánto gastaste ${nombreDia(clave)}?`, [
+    {
+      etq: 'Guardar gasto', pide: true,
+      fn: monto => {
+        const g = agregarGasto({ monto, tipo, ts: tsParaDia(clave) });
+        refrescarTodo();
+        toast(`Gasto anotado: ${nombreGasto(tipo)} ${soles(monto)}`, [{ etq: 'Deshacer', fn: () => { quitarGasto(g); refrescarTodo(); } }]);
+      },
+    },
+  ], { valor: '', etiqueta: `Monto de ${nombreGasto(tipo).toLowerCase()} en soles` });
+}
+
+/** Cambiar el monto de un gasto o eliminarlo. */
+function abrirGasto(g) {
+  abrirHoja(nombreGasto(g.tipo), `${fechaTexto(g.dia)}. Cambia el monto o elimínalo.`, [
+    {
+      etq: 'Guardar cambio', pide: true,
+      fn: monto => {
+        const antes = g.monto;
+        if (monto === antes) return;
+        g.monto = monto;
+        guardarGastos();
+        refrescarTodo();
+        toast('Gasto actualizado', [{ etq: 'Deshacer', fn: () => { g.monto = antes; guardarGastos(); refrescarTodo(); } }]);
+      },
+    },
+    {
+      etq: 'Eliminar gasto', tipo: 'peligro',
+      fn: () => {
+        quitarGasto(g);
+        refrescarTodo();
+        toast('Gasto eliminado', [{ etq: 'Deshacer', fn: () => { agregarGasto(g); refrescarTodo(); } }]);
+      },
+    },
+  ], { valor: (g.monto / 100).toFixed(2), etiqueta: 'Monto en soles' });
 }
 
 function abrirCobro(c) {
@@ -447,17 +580,24 @@ function descargar(blob, nombre) {
 }
 
 function exportarCSV() {
-  if (!cobros.length) { toast('Todavía no hay cobros para exportar.'); return; }
+  if (!cobros.length && !gastos.length) { toast('Todavía no hay cobros ni gastos para exportar.'); return; }
   const celda = s => (/[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s);
-  const filas = [['Fecha', 'Hora', 'Monto (S/)', 'Destino', 'Pago']];
-  cobros.forEach(c => {
-    const d = new Date(c.ts);
-    filas.push([c.dia, `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`, (c.monto / 100).toFixed(2), c.etiqueta, nombreMetodo(c.metodo)]);
+  // Una sola tabla en orden de hora: los cobros suman y los gastos van en negativo, así la suma de "Monto" es la ganancia.
+  const movimientos = cobros.map(c => ({ ts: c.ts, dia: c.dia, monto: c.monto, detalle: c.etiqueta, pago: nombreMetodo(c.metodo), tipo: 'Cobro' }))
+    .concat(gastos.map(g => ({ ts: g.ts, dia: g.dia, monto: -g.monto, detalle: nombreGasto(g.tipo), pago: '', tipo: 'Gasto' })))
+    .sort((a, b) => a.ts - b.ts);
+  const filas = [['Fecha', 'Hora', 'Monto (S/)', 'Destino / Gasto', 'Pago', 'Tipo']];
+  movimientos.forEach(m => {
+    const d = new Date(m.ts);
+    filas.push([m.dia, `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`, (m.monto / 100).toFixed(2), m.detalle, m.pago, m.tipo]);
   });
   const BOM = String.fromCharCode(0xFEFF);   // con esto Excel lee bien las tildes
   const csv = BOM + filas.map(f => f.map(celda).join(',')).join('\r\n');
   descargar(new Blob([csv], { type: 'text/csv;charset=utf-8' }), `cobros-colectivo-${claveDia(Date.now())}.csv`);
 }
+
+/** "5 cobros", "5 cobros y 2 gastos" o "2 gastos" (si solo hay gastos). */
+const cuantos = (c, g) => (c && g ? `${plural(c, 'cobro', 'cobros')} y ${plural(g, 'gasto', 'gastos')}` : g ? plural(g, 'gasto', 'gastos') : plural(c, 'cobro', 'cobros'));
 
 /* ───────────── Copia de seguridad ───────────── */
 
@@ -469,8 +609,10 @@ const diasEntre = (a, b) => Math.round((fechaDe(b) - fechaDe(a)) / 864e5);
 /** Muestra cuándo fue la última copia y enciende el puntito de aviso de Ajustes si toca hacer una (o hay versión nueva). */
 function pintarCopia() {
   const t = ajustes.ultimaCopia;
-  const desde = t || (cobros.length ? cobros[0].ts : 0);           // sin copia: se cuenta desde el primer cobro
-  const pendiente = cobros.length > 0 && diasEntre(claveDia(desde), hoyClave) >= DIAS_SIN_COPIA;
+  const primero = Math.min(cobros.length ? cobros[0].ts : Infinity, gastos.length ? gastos[0].ts : Infinity);
+  const hayDatos = primero !== Infinity;
+  const desde = t || (hayDatos ? primero : 0);                      // sin copia: se cuenta desde el primer movimiento
+  const pendiente = hayDatos && diasEntre(claveDia(desde), hoyClave) >= DIAS_SIN_COPIA;
   const dias = t ? diasEntre(claveDia(t), hoyClave) : 0;
   const estado = $('#copia-estado');
   estado.textContent = !t ? 'Aún no has guardado ninguna copia.' : dias <= 0 ? 'Última copia: hoy.' : `Última copia: hace ${plural(dias, 'día', 'días')}.`;
@@ -479,15 +621,16 @@ function pintarCopia() {
 }
 
 function crearCopia() {
-  return { app: 'colectivo', version: 1, creada: new Date().toISOString(), tarifas, cobros: cobros.map(cobroAFila) };
+  return { app: 'colectivo', version: 2, creada: new Date().toISOString(), tarifas, cobros: cobros.map(cobroAFila), gastos: gastos.map(gastoAFila) };
 }
 
-/** Lee el texto de un archivo de copia. Devuelve { cobros, tarifas } o null si no es una copia de Colectivo. */
+/** Lee el texto de un archivo de copia. Devuelve { cobros, gastos, tarifas } o null si no es una copia de Colectivo.
+    `gastos` es null en las copias viejas (anteriores a los gastos). */
 function leerCopia(texto) {
   let d;
   try { d = JSON.parse(texto); } catch (e) { return null; }
   if (!d || d.app !== 'colectivo' || !Array.isArray(d.cobros)) return null;
-  return { cobros: filasACobros(d.cobros), tarifas: limpiarTarifas(d.tarifas) };
+  return { cobros: filasACobros(d.cobros), gastos: Array.isArray(d.gastos) ? filasAGastos(d.gastos) : null, tarifas: limpiarTarifas(d.tarifas) };
 }
 
 async function guardarCopia() {
@@ -513,80 +656,106 @@ async function guardarCopia() {
   toast(mensaje, [], { ms: 7000 });
 }
 
+/** Lo que trae la copia y todavía no está en el teléfono (se compara por la marca de tiempo). */
+function faltantes(copia) {
+  const tengoC = new Set(cobros.map(c => c.ts)), tengoG = new Set(gastos.map(g => g.ts));
+  return { cobros: copia.cobros.filter(c => !tengoC.has(c.ts)), gastos: (copia.gastos || []).filter(g => !tengoG.has(g.ts)) };
+}
+
 function ofrecerRestaurar(copia) {
-  const tengo = new Set(cobros.map(c => c.ts));
-  const nuevos = copia.cobros.filter(c => !tengo.has(c.ts));
-  const n = copia.cobros.length;
-  const primero = n ? copia.cobros[0].dia : '', ultimoDia = n ? copia.cobros[n - 1].dia : '';
-  const rango = !n ? '' : primero === ultimoDia ? ` (${fechaTexto(primero)})` : ` (del ${fechaTexto(primero)} al ${fechaTexto(ultimoDia)})`;
+  const nuevos = faltantes(copia);
+  const n = copia.cobros.length, m = copia.gastos ? copia.gastos.length : 0;
+  const dias = copia.cobros.map(c => c.dia).concat(copia.gastos ? copia.gastos.map(g => g.dia) : []).sort();
+  const primero = dias[0], ultimoDia = dias[dias.length - 1];
+  const rango = !dias.length ? '' : primero === ultimoDia ? ` (${fechaTexto(primero)})` : ` (del ${fechaTexto(primero)} al ${fechaTexto(ultimoDia)})`;
   abrirHoja('Restaurar copia de seguridad',
-    `La copia tiene ${plural(n, 'cobro', 'cobros')}${rango}. Ahora en este teléfono tienes ${plural(cobros.length, 'cobro', 'cobros')}.`, [
-      { etq: `Unir con lo que tengo (+${nuevos.length} nuevos)`, fn: () => restaurar(copia, nuevos) },
-      { etq: 'Reemplazar todo con la copia', tipo: 'peligro', fn: () => restaurar(copia, null) },
+    `La copia tiene ${cuantos(n, m)}${rango}. Ahora en este teléfono tienes ${cuantos(cobros.length, gastos.length)}.`, [
+      { etq: `Unir con lo que tengo (+${nuevos.cobros.length + nuevos.gastos.length} nuevos)`, fn: () => restaurar(copia, true) },
+      { etq: 'Reemplazar todo con la copia', tipo: 'peligro', fn: () => restaurar(copia, false) },
     ]);
 }
 
-/** nuevos = cobros que faltan (se suman a los actuales) · null = reemplazar cobros y tarifas por los de la copia. */
-function restaurar(copia, nuevos) {
-  const antes = { cobros, tarifas };
-  if (nuevos) {
-    cobros = cobros.concat(nuevos).sort((a, b) => a.ts - b.ts);
+/** unir = true: se suman solo los que faltan (las tarifas no se tocan) · false: se reemplazan cobros, gastos y tarifas por los de la copia. */
+function restaurar(copia, unir) {
+  const antes = { cobros, gastos, tarifas };
+  let aviso;
+  if (unir) {
+    const nuevos = faltantes(copia);
+    cobros = cobros.concat(nuevos.cobros).sort((a, b) => a.ts - b.ts);
+    gastos = gastos.concat(nuevos.gastos).sort((a, b) => a.ts - b.ts);
+    aviso = `Se agregaron ${cuantos(nuevos.cobros.length, nuevos.gastos.length)}.`;
   } else {
     cobros = copia.cobros;
+    if (copia.gastos) gastos = copia.gastos;         // una copia vieja (sin gastos) no borra los gastos que ya tienes
     if (copia.tarifas) tarifas = copia.tarifas;
+    aviso = `Copia restaurada: ${cuantos(copia.cobros.length, copia.gastos ? copia.gastos.length : 0)}.`;
   }
   aplicarDatos();
-  const n = nuevos ? nuevos.length : copia.cobros.length;
-  toast(nuevos ? `Se agregaron ${plural(n, 'cobro', 'cobros')}.` : `Copia restaurada: ${plural(n, 'cobro', 'cobros')}.`, [
-    { etq: 'Deshacer', fn: () => { cobros = antes.cobros; tarifas = antes.tarifas; aplicarDatos(); } },
-  ], { ms: 10000 });
+  toast(aviso, [{ etq: 'Deshacer', fn: () => { cobros = antes.cobros; gastos = antes.gastos; tarifas = antes.tarifas; aplicarDatos(); } }], { ms: 10000 });
 }
 
-/** Guarda y repinta todo después de cambiar cobros y/o tarifas de golpe. */
+/** Guarda y repinta todo después de cambiar cobros, gastos y/o tarifas de golpe. */
 function aplicarDatos() {
   ultimo = null;
   guardarCobros();
+  guardarGastos();
   guardarTarifas();
   construirTarifas();
   if (vista === 'ajustes') construirEditor();
   refrescarTodo();
 }
 
-/** Borra un grupo de cobros: pide confirmar y deja 10 segundos para deshacer (el deshacer los devuelve a su lugar). */
-function borrarGrupo(quitar, titulo, detalle, botonSi, aviso) {
+/** Borra un grupo de cobros y gastos: pide confirmar y deja 10 segundos para deshacer (el deshacer los devuelve a su lugar). */
+function borrarGrupo(cobrosFuera, gastosFuera, titulo, detalle, botonSi, aviso) {
   abrirHoja(titulo, detalle, [{
     etq: botonSi, tipo: 'peligro',
     fn: () => {
-      const fuera = new Set(quitar);
-      cobros = cobros.filter(c => !fuera.has(c));
+      const c = new Set(cobrosFuera), g = new Set(gastosFuera);
+      cobros = cobros.filter(x => !c.has(x));
+      gastos = gastos.filter(x => !g.has(x));
       ultimo = null;
       guardarCobros();
+      guardarGastos();
       refrescarTodo();
-      toast(aviso, [{ etq: 'Deshacer', fn: () => { cobros = cobros.concat(quitar).sort((a, b) => a.ts - b.ts); guardarCobros(); refrescarTodo(); } }], { ms: 10000 });
+      toast(aviso, [{
+        etq: 'Deshacer',
+        fn: () => {
+          cobros = cobros.concat(cobrosFuera).sort((a, b) => a.ts - b.ts);
+          gastos = gastos.concat(gastosFuera).sort((a, b) => a.ts - b.ts);
+          guardarCobros();
+          guardarGastos();
+          refrescarTodo();
+        },
+      }], { ms: 10000 });
     },
   }]);
 }
 
-/** Borra el historial del día que se está viendo en Cobros. */
+/** Borra el historial (cobros y gastos) del día que se está viendo en Cobros. */
 function borrarDia() {
-  const clave = diaSel, lista = cobrosDelDia(clave);
-  if (!lista.length) return;
+  const clave = diaSel, lista = cobrosDelDia(clave), gastosDia = gastosDelDia(clave);
+  if (!lista.length && !gastosDia.length) return;
   const cuando = clave === hoyClave ? 'de hoy' : clave === sumarDias(hoyClave, -1) ? 'de ayer' : 'del ' + fechaTexto(clave);
-  const total = lista.reduce((suma, c) => suma + c.monto, 0);
-  borrarGrupo(lista, `¿Borrar los cobros ${cuando}?`,
-    `Vas a eliminar ${plural(lista.length, 'cobro', 'cobros')} (${soles(total)}). Los demás días no se tocan.`,
+  const que = lista.length && gastosDia.length ? 'los cobros y gastos' : gastosDia.length ? 'los gastos' : 'los cobros';
+  const partes = [
+    lista.length ? `${plural(lista.length, 'cobro', 'cobros')} (${soles(sumar(lista))})` : '',
+    gastosDia.length ? `${plural(gastosDia.length, 'gasto', 'gastos')} (${soles(sumar(gastosDia))})` : '',
+  ].filter(Boolean).join(' y ');
+  borrarGrupo(lista, gastosDia, `¿Borrar ${que} ${cuando}?`,
+    `Vas a eliminar ${partes}. Los demás días no se tocan.`,
     'Sí, borrar este día',
-    `Listo: ${plural(lista.length, 'cobro borrado', 'cobros borrados')} ${cuando}.`);
+    `Listo: ${cuantos(lista.length, gastosDia.length)} ${lista.length + gastosDia.length === 1 ? 'borrado' : 'borrados'} ${cuando}.`);
 }
 
-/** Borra el historial de todos los días. */
+/** Borra el historial (cobros y gastos) de todos los días. */
 function borrarTodo() {
-  if (!cobros.length) return;
-  const n = cobros.length, dias = new Set(cobros.map(c => c.dia)).size;
-  borrarGrupo(cobros.slice(), '¿Borrar todo el historial?',
-    `Vas a eliminar ${plural(n, 'cobro', 'cobros')} de ${plural(dias, 'día', 'días')}. Si los necesitas, guarda antes una copia de seguridad en Ajustes.`,
+  if (!cobros.length && !gastos.length) return;
+  const dias = new Set(cobros.map(c => c.dia).concat(gastos.map(g => g.dia))).size;
+  const total = cuantos(cobros.length, gastos.length);
+  borrarGrupo(cobros.slice(), gastos.slice(), '¿Borrar todo el historial?',
+    `Vas a eliminar ${total} de ${plural(dias, 'día', 'días')}. Si los necesitas, guarda antes una copia de seguridad en Ajustes.`,
     'Sí, borrar todo el historial',
-    `Listo: ${plural(n, 'cobro borrado', 'cobros borrados')}.`);
+    `Listo: ${total} ${cobros.length + gastos.length === 1 ? 'borrado' : 'borrados'}.`);
 }
 
 /* ───────────── Avisos y hoja inferior ───────────── */
@@ -607,14 +776,42 @@ function ocultarToast() {
   $('#toast').classList.remove('visible');
 }
 
-function abrirHoja(titulo, sub, acciones) {
+/** Hoja inferior con botones. Si se pasa `campo`, muestra además una casilla de monto: las acciones con
+    `pide: true` reciben el monto en céntimos (y la hoja no se cierra mientras el monto no sea válido). */
+function abrirHoja(titulo, sub, acciones, campo) {
   $('#hoja-titulo').textContent = titulo;
   $('#hoja-sub').textContent = sub || '';
   const cont = $('#hoja-acciones');
   cont.textContent = '';
-  acciones.forEach(a => cont.append(h('button', { type: 'button', class: 'hoja-btn' + (a.tipo ? ' ' + a.tipo : ''), onclick: () => { cerrarHoja(); a.fn(); } }, a.etq)));
+  let entrada = null, error = null;
+  if (campo) {
+    entrada = h('input', { class: 'campo monto', type: 'text', inputmode: 'decimal', autocomplete: 'off', placeholder: '0.00', value: campo.valor || '', 'aria-label': campo.etiqueta });
+    error = h('p', { class: 'hoja-error', hidden: true }, 'Escribe un monto válido, por ejemplo 40 o 25.50');
+    entrada.addEventListener('input', () => { error.hidden = true; });
+    cont.append(h('div', { class: 'hoja-monto' }, h('span', { class: 'prefijo' }, 'S/'), entrada), error);
+  }
+  const botones = acciones.map(a => h('button', {
+    type: 'button', class: 'hoja-btn' + (a.tipo ? ' ' + a.tipo : ''),
+    onclick: () => {
+      if (!a.pide) { cerrarHoja(); a.fn(); return; }
+      const monto = leerMonto(entrada.value);
+      if (monto == null) { error.hidden = false; entrada.focus(); return; }
+      cerrarHoja();
+      a.fn(monto);
+    },
+  }, a.etq));
+  botones.forEach(b => cont.append(b));
   cont.append(h('button', { type: 'button', class: 'hoja-btn cancelar', onclick: cerrarHoja }, 'Cerrar'));
+  if (entrada) {
+    entrada.addEventListener('keydown', e => {           // Enter en el teclado = el primer botón que pide monto
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      const i = acciones.findIndex(a => a.pide);
+      if (i >= 0) botones[i].click();
+    });
+  }
   $('#hoja').hidden = false;
+  if (entrada) setTimeout(() => { entrada.focus(); entrada.select(); }, 60);
 }
 function cerrarHoja() { $('#hoja').hidden = true; }
 
@@ -716,7 +913,8 @@ function iniciar() {
     else toast('Ese archivo no es una copia de seguridad de Colectivo.', [], { ms: 6000 });
   });
   $('#btn-actualizar').addEventListener('click', () => location.reload());
-  $('#btn-borrar').addEventListener('click', () => (cobros.length ? borrarTodo() : toast('No hay cobros que borrar.')));
+  $('#btn-borrar').addEventListener('click', () => (cobros.length || gastos.length ? borrarTodo() : toast('No hay historial que borrar.')));
+  reemplazarHijos($('#gastos-botones'), TIPOS_GASTO.map(t => h('button', { type: 'button', class: 'btn-gasto', onclick: () => nuevoGasto(t.id) }, '+ ' + t.nombre)));
   $('#btn-borrar-dia').addEventListener('click', borrarDia);
   $('#btn-borrar-todo').addEventListener('click', borrarTodo);
 

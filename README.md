@@ -1,6 +1,6 @@
 # Colectivo
 
-App para registrar los cobros del colectivo: tocas el precio (S/ 3.50, 2.50, 2.00…) y queda guardado con la hora, la fecha y si fue **Efectivo** o **Yape**. Pensada para usarla con una mano en el celular. Funciona sin internet.
+App para registrar los cobros del colectivo: tocas el precio (S/ 3.50 Centro, 3.00 Terminal, 2.50 Villa María, 2.00 Cerca…) y queda guardado con la hora, la fecha y si fue **Efectivo** o **Yape**. En **Cobros** anotas la gasolina y el gas del día y te muestra la **ganancia** (lo cobrado menos los gastos). Pensada para usarla con una mano en el celular. Funciona sin internet.
 
 ## Usarla
 
@@ -33,13 +33,12 @@ Los datos de cada dispositivo son independientes: lo que pruebas en la PC no apa
 
 ## Cómo se guardan los datos
 
-En el `localStorage` del navegador del celular (no hay servidor ni cuenta). Cada cobro es `[hora en ms, céntimos, 0|1 (1 = Yape), destino]` en la clave `colectivo.cobros.v1`; las tarifas y ajustes tienen sus propias claves. Los montos son enteros en céntimos (350 = S/ 3.50). Si borras los datos del navegador, cambias de celular o lo pierdes, se pierden los cobros. Por eso existe **Ajustes → Guardar copia de seguridad**: en el celular abre el menú de compartir (Drive, WhatsApp…) y en la PC descarga un archivo `.json`. Para volver a cargarla: **Ajustes → Restaurar copia de seguridad**, que permite *unir* (solo agrega los cobros que faltan) o *reemplazar todo*, y se puede deshacer. Si pasan 7 días sin copia aparece un puntito naranja en la pestaña Ajustes. **Exportar cobros (Excel / CSV)** sirve para verlos en Excel, pero ese archivo no se puede volver a cargar.
+En el `localStorage` del navegador del celular (no hay servidor ni cuenta). Cada cobro es `[hora en ms, céntimos, 0|1 (1 = Yape), destino]` en la clave `colectivo.cobros.v1`; los gastos son `[hora en ms, céntimos, tipo]` en `colectivo.gastos.v1` (tipos: `gasolina`, `gas`; se pueden sumar más en `TIPOS_GASTO` de `app.js`); las tarifas y ajustes tienen sus propias claves. Los montos son enteros en céntimos (350 = S/ 3.50). Si borras los datos del navegador, cambias de celular o lo pierdes, se pierden los cobros. Por eso existe **Ajustes → Guardar copia de seguridad**: en el celular abre el menú de compartir (Drive, WhatsApp…) y en la PC descarga un archivo `.json`. Para volver a cargarla: **Ajustes → Restaurar copia de seguridad**, que permite *unir* (solo agrega los cobros que faltan) o *reemplazar todo*, y se puede deshacer. Si pasan 7 días sin copia aparece un puntito naranja en la pestaña Ajustes. **Exportar cobros y gastos (Excel / CSV)** sirve para verlos en Excel (los gastos van en negativo, así la suma de la columna Monto es la ganancia), pero ese archivo no se puede volver a cargar.
 
 Cuando publiques una versión nueva, la app la detecta sola y marca Ajustes con el mismo puntito para que toques **Actualizar la app** (no se recarga sola por si estás cobrando).
 
 ## Ideas para seguir mejorándola
 
 - Gráfico de los últimos 7 días y cierre del día (efectivo que debes tener vs. Yape por verificar).
-- Gastos (gasolina, etc.) para ver la ganancia neta.
 - Que el “día” pueda empezar de madrugada (hoy cambia a las 12:00 a. m.).
 - Cobrar varios pasajeros de una vez (×2, ×3).
