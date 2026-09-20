@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b0f14">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="Registro de cobros del colectivo: efectivo y Yape.">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Colectivo">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Colectivo</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body data-metodo="efectivo">
+  <div id="app">
+
+    <!-- ═════════════ COBRAR ═════════════ -->
+    <section id="vista-cobrar" class="vista activa" aria-label="Cobrar">
+      <header class="resumen">
+        <div class="resumen-principal">
+          <span class="resumen-etq">Hoy</span>
+          <strong class="resumen-total" id="hoy-total">S/ 0.00</strong>
+          <div class="resumen-det">
+            <span id="hoy-pasajeros">0 pasajeros</span>
+            <span><i class="punto p-efectivo"></i>Efectivo <b id="hoy-efectivo">S/ 0.00</b></span>
+            <span><i class="punto p-yape"></i>Yape <b id="hoy-yape">S/ 0.00</b></span>
+          </div>
+        </div>
+        <button type="button" class="icono" id="btn-pantalla" aria-label="Pantalla completa" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+        </button>
+      </header>
+
+      <div class="metodo" role="radiogroup" aria-label="Forma de pago">
+        <button type="button" role="radio" data-metodo="efectivo" aria-checked="true">Efectivo</button>
+        <button type="button" role="radio" data-metodo="yape" aria-checked="false">Yape</button>
+      </div>
+
+      <div class="tarifas" id="tarifas"></div>
+
+      <div class="ultimo" aria-live="polite">
+        <div class="ultimo-info" id="ultimo-info"></div>
+        <div class="ultimo-acciones" id="ultimo-acciones"></div>
+      </div>
+    </section>
+
+    <!-- ═════════════ COBROS (historial) ═════════════ -->
+    <section id="vista-cobros" class="vista" aria-label="Cobros">
+      <div class="scroll">
+        <div class="dia-nav">
+          <button type="button" class="icono" id="dia-prev" aria-label="Día anterior">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+          </button>
+          <label class="dia-titulo">
+            <strong id="dia-etq">Hoy</strong>
+            <span id="dia-fecha"></span>
+            <input type="date" id="dia-picker" aria-label="Elegir otra fecha">
+          </label>
+          <button type="button" class="icono" id="dia-next" aria-label="Día siguiente">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
+          </button>
+        </div>
+
+        <div class="cards">
+          <div class="card card-total">
+            <span class="card-etq">Total del día</span>
+            <strong id="dia-total">S/ 0.00</strong>
+            <small id="dia-pasajeros">0 pasajeros</small>
+          </div>
+          <div class="card">
+            <span class="card-etq"><i class="punto p-efectivo"></i>Efectivo</span>
+            <strong id="dia-efectivo">S/ 0.00</strong>
+            <small id="dia-efectivo-n"></small>
+          </div>
+          <div class="card">
+            <span class="card-etq"><i class="punto p-yape"></i>Yape</span>
+            <strong id="dia-yape">S/ 0.00</strong>
+            <small id="dia-yape-n"></small>
+          </div>
+        </div>
+
+        <div class="chips" id="dia-destinos"></div>
+
+        <ul class="lista" id="lista"></ul>
+        <p class="vacio" id="vacio" hidden></p>
+      </div>
+    </section>
+
+    <!-- ═════════════ AJUSTES ═════════════ -->
+    <section id="vista-ajustes" class="vista" aria-label="Ajustes">
+      <div class="scroll">
+        <h1 class="titulo">Ajustes</h1>
+
+        <h2 class="seccion">Tarifas</h2>
+        <p class="ayuda">Cambia los precios y destinos. Los de “botón grande” son los que más cobras; los demás salen chicos abajo.</p>
+        <div id="editor-tarifas"></div>
+        <button type="button" class="boton" id="btn-agregar">+ Agregar tarifa</button>
+
+        <h2 class="seccion">Al cobrar</h2>
+        <div class="grupo">
+          <button type="button" class="fila-sw" role="switch" data-ajuste="volverEfectivo" aria-checked="true">
+            <span class="fila-txt">Volver a Efectivo tras un Yape<small>Así no se queda en Yape por error</small></span><i class="sw"></i>
+          </button>
+          <button type="button" class="fila-sw" role="switch" data-ajuste="vibracion" aria-checked="true">
+            <span class="fila-txt">Vibrar<small>Confirma cada cobro sin mirar</small></span><i class="sw"></i>
+          </button>
+          <button type="button" class="fila-sw" role="switch" data-ajuste="sonido" aria-checked="true">
+            <span class="fila-txt">Sonido<small>Un “tic” suave al cobrar</small></span><i class="sw"></i>
+          </button>
+          <button type="button" class="fila-sw" role="switch" data-ajuste="pantalla" aria-checked="true">
+            <span class="fila-txt">Mantener pantalla encendida<small>Mientras la app está abierta</small></span><i class="sw"></i>
+          </button>
+        </div>
+
+        <h2 class="seccion">Datos</h2>
+        <div class="grupo">
+          <button type="button" class="fila-btn" id="btn-actualizar" hidden>
+            <span class="fila-txt">Actualizar la app<small>Hay una versión nueva. Toca para cargarla</small></span>
+          </button>
+          <button type="button" class="fila-btn" id="btn-copia">
+            <span class="fila-txt">Guardar copia de seguridad<small>Un archivo con tus cobros y tarifas, para guardarlo en Drive o enviártelo por WhatsApp</small></span>
+          </button>
+          <button type="button" class="fila-btn" id="btn-restaurar">
+            <span class="fila-txt">Restaurar copia de seguridad<small>Desde un archivo que guardaste antes</small></span>
+          </button>
+          <button type="button" class="fila-btn" id="btn-csv">Exportar cobros (Excel / CSV)</button>
+          <button type="button" class="fila-btn" id="btn-instalar" hidden>Instalar en la pantalla de inicio</button>
+          <button type="button" class="fila-btn peligro" id="btn-borrar">Borrar todos los cobros</button>
+        </div>
+        <p class="estado-copia" id="copia-estado"></p>
+        <input type="file" id="archivo-copia" accept=".json,application/json" hidden>
+        <p class="version">Colectivo v1 · Tus cobros se guardan solo en este teléfono.</p>
+      </div>
+    </section>
+
+    <nav class="tabs" aria-label="Secciones">
+      <button type="button" class="tab" data-vista="cobrar" aria-current="page">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><text x="12" y="16" text-anchor="middle" font-size="10" font-weight="800" fill="currentColor" stroke="none">S/</text></svg>
+        <span>Cobrar</span>
+      </button>
+      <button type="button" class="tab" data-vista="cobros">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1" fill="currentColor"/><circle cx="4.5" cy="12" r="1" fill="currentColor"/><circle cx="4.5" cy="18" r="1" fill="currentColor"/></svg>
+        <span>Cobros</span>
+      </button>
+      <button type="button" class="tab" data-vista="ajustes">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h9M19 6h1M4 12h3M13 12h7M4 18h11M21 18h-1"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>
+        <span>Ajustes</span>
+      </button>
+    </nav>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <div class="hoja" id="hoja" hidden>
+    <div class="hoja-fondo" id="hoja-fondo"></div>
+    <div class="hoja-panel" role="dialog" aria-modal="true" aria-labelledby="hoja-titulo">
+      <h2 id="hoja-titulo"></h2>
+      <p id="hoja-sub"></p>
+      <div class="hoja-acciones" id="hoja-acciones"></div>
+    </div>
+  </div>
+
+  <noscript>Colectivo necesita JavaScript para funcionar.</noscript>
+  <script src="app.js"></script>
+</body>
+</html>

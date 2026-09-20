@@ -1,0 +1,333 @@
+/* ═════════════ Colores que cambian según Efectivo / Yape ═════════════ */
+@property --a1 { syntax: "<color>"; inherits: true; initial-value: #189a48; }
+@property --a2 { syntax: "<color>"; inherits: true; initial-value: #0d6f33; }
+@property --brillo { syntax: "<color>"; inherits: true; initial-value: rgba(34, 197, 94, .45); }
+
+:root {
+  color-scheme: dark;
+  --bg: #0b0f14;
+  --panel: #151b23;
+  --panel-2: #1f2833;
+  --linea: #263040;
+  --texto: #f2f5f9;
+  --texto-2: #9aa8b8;
+  --efectivo: #34d17a;
+  --efectivo-relleno: #15803d;
+  --yape: #b47bff;
+  --yape-relleno: #7e30d0;
+  --peligro: #ff6b66;
+  --tabs-h: 64px;
+}
+
+body {
+  --a1: #189a48; --a2: #0d6f33; --brillo: rgba(34, 197, 94, .45);
+  transition: --a1 .3s, --a2 .3s, --brillo .3s;
+}
+body[data-metodo="yape"] {
+  --a1: #8a3ed6; --a2: #5b21a0; --brillo: rgba(163, 92, 240, .5);
+}
+
+/* ═════════════ Base ═════════════ */
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+html, body { height: 100%; margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--texto);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  overscroll-behavior: none;
+}
+button { font: inherit; color: inherit; border: 0; background: none; padding: 0; cursor: pointer; touch-action: manipulation; }
+input { font: inherit; color: inherit; -webkit-user-select: text; user-select: text; }
+button:focus-visible, input:focus-visible { outline: 3px solid rgba(255, 255, 255, .7); outline-offset: 2px; }
+svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+#app {
+  height: 100vh; height: 100dvh;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+.vista { display: none; min-height: 0; min-width: 0; }
+.vista.activa { display: flex; flex-direction: column; }
+
+.punto { display: inline-block; width: .62em; height: .62em; border-radius: 50%; margin-right: .4em; vertical-align: baseline; }
+.p-efectivo { background: var(--efectivo); }
+.p-yape { background: var(--yape); }
+
+.icono {
+  flex: none; width: 46px; height: 46px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--panel); color: var(--texto-2);
+}
+.icono:disabled { opacity: .3; cursor: default; }
+
+/* ═════════════ COBRAR ═════════════ */
+#vista-cobrar {
+  gap: 10px;
+  overflow-y: auto;
+  padding: max(10px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) 10px max(14px, env(safe-area-inset-left));
+}
+
+.resumen { display: flex; align-items: center; gap: 12px; padding: 2px 4px 0; }
+.resumen-principal { flex: 1; min-width: 0; }
+.resumen-etq { font-size: .74rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--texto-2); }
+.resumen-total { display: block; font-size: clamp(1.9rem, 9vw, 2.6rem); font-weight: 800; letter-spacing: -.02em; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.resumen-det { display: flex; flex-wrap: wrap; gap: 2px 14px; margin-top: 2px; font-size: .85rem; color: var(--texto-2); }
+.resumen-det b { color: var(--texto); font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* Selector Efectivo / Yape */
+.metodo { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 6px; background: var(--panel); border-radius: 999px; }
+.metodo button {
+  height: 50px; border-radius: 999px;
+  font-size: 1.15rem; font-weight: 800; letter-spacing: .01em;
+  color: var(--texto-2);
+  transition: background-color .18s, color .18s;
+}
+.metodo button[aria-checked="true"] { color: #fff; }
+.metodo button[data-metodo="efectivo"][aria-checked="true"] { background: var(--efectivo-relleno); }
+.metodo button[data-metodo="yape"][aria-checked="true"] { background: var(--yape-relleno); }
+
+/* Botones de precio */
+/* Sin min-height:0: si el teléfono es tan bajito que no caben, la pantalla se desplaza un poco en vez de aplastar los botones. */
+.tarifas { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+.grandes { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+.chicas { display: flex; flex-wrap: wrap; gap: 10px; }
+.chicas.solas { flex: 1; align-content: stretch; }
+
+.tarifa {
+  position: relative; overflow: hidden;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  color: #fff;
+  background: linear-gradient(155deg, var(--a1), var(--a2));
+  box-shadow: 0 12px 28px -14px var(--brillo), inset 0 1px 0 rgba(255, 255, 255, .25), inset 0 -10px 20px rgba(0, 0, 0, .12);
+  transition: transform .09s ease, filter .09s ease;
+}
+.tarifa:active { transform: scale(.97); filter: brightness(1.12); }
+.tarifa.grande { flex: 1; min-height: 76px; border-radius: 44px; }
+.tarifa.chica { flex: 1 1 calc(33% - 10px); min-width: 108px; height: 68px; border-radius: 34px; flex-direction: row; gap: 10px; }
+.chicas.solas .tarifa.chica { height: auto; min-height: 68px; }
+
+.monto { font-size: clamp(2.4rem, 13vmin, 5rem); font-weight: 800; line-height: 1; letter-spacing: -.03em; font-variant-numeric: tabular-nums; text-shadow: 0 2px 10px rgba(0, 0, 0, .18); }
+.monto small { font-size: .38em; font-weight: 700; letter-spacing: 0; opacity: .85; margin-right: .22em; vertical-align: .62em; }
+.destino { margin-top: 4px; font-size: clamp(1rem, 4.2vmin, 1.5rem); font-weight: 700; opacity: .95; }
+.chica .monto { font-size: 1.9rem; }
+.chica .destino { margin: 0; font-size: 1rem; }
+
+/* El texto de cada botón grande crece o se achica según el tamaño del propio botón. */
+@supports (container-type: size) {
+  .tarifa.grande { container-type: size; }
+  .grande .monto { font-size: min(46cqh, 24cqw); }
+  .grande .destino { font-size: clamp(.85rem, 17cqh, 1.6rem); }
+  .grande .cuenta { font-size: clamp(.75rem, 13cqh, 1rem); }
+}
+
+.cuenta {
+  position: absolute; top: 12px; right: 18px;
+  min-width: 2.1em; padding: 2px 10px; text-align: center;
+  border-radius: 999px; background: rgba(0, 0, 0, .26);
+  font-size: .95rem; font-weight: 800; font-variant-numeric: tabular-nums;
+}
+.cuenta:empty { display: none; }
+.chica .cuenta { top: 8px; right: 14px; font-size: .8rem; padding: 1px 8px; }
+.destello { position: absolute; inset: 0; border-radius: inherit; background: #fff; opacity: 0; pointer-events: none; }
+.sin-tarifas { margin: auto; padding: 0 24px; text-align: center; color: var(--texto-2); font-size: 1.1rem; }
+
+/* Barra “último cobro” */
+.ultimo {
+  display: flex; align-items: center; gap: 10px;
+  min-height: 62px; padding: 8px 8px 8px 16px;
+  background: var(--panel); border: 1px solid var(--linea); border-radius: 24px;
+}
+.ultimo-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.ultimo-info strong { font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ultimo-info span { font-size: .82rem; color: var(--texto-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ultimo-acciones { flex: none; display: flex; gap: 6px; }
+.btn-mini { height: 46px; padding: 0 15px; border-radius: 999px; background: var(--panel-2); font-size: .92rem; font-weight: 700; }
+.btn-mini:active { filter: brightness(1.3); }
+
+/* ═════════════ Pantallas con scroll (Cobros / Ajustes) ═════════════ */
+.scroll {
+  flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  padding: max(12px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) 28px max(14px, env(safe-area-inset-left));
+}
+.titulo { margin: 4px 0 6px; font-size: 1.7rem; }
+
+/* Cobros: navegación por día */
+.dia-nav {
+  position: sticky; top: calc(-1 * max(12px, env(safe-area-inset-top))); z-index: 2;
+  display: flex; align-items: center; gap: 10px;
+  margin: 0 0 12px; padding: max(12px, env(safe-area-inset-top)) 0 8px; background: var(--bg);
+}
+.dia-titulo { position: relative; flex: 1; text-align: center; display: flex; flex-direction: column; line-height: 1.2; cursor: pointer; }
+.dia-titulo strong { font-size: 1.35rem; }
+.dia-titulo span { font-size: .85rem; color: var(--texto-2); }
+.dia-titulo input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+
+.cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+.card { min-width: 0; display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; background: var(--panel); border-radius: 20px; }
+.card-total { grid-column: 1 / -1; background: linear-gradient(155deg, var(--panel-2), var(--panel)); }
+.card-etq { font-size: .74rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--texto-2); }
+.card strong { font-size: 1.55rem; font-weight: 800; letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
+.card-total strong { font-size: 2.4rem; }
+.card small { font-size: .82rem; color: var(--texto-2); }
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.chips:empty { display: none; }
+.chip-dest { padding: 6px 12px; border-radius: 999px; background: var(--panel); font-size: .85rem; color: var(--texto-2); }
+.chip-dest b { color: var(--texto); }
+
+.lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.fila {
+  width: 100%; min-height: 64px; text-align: left;
+  display: grid; grid-template-columns: 76px minmax(0, 1fr) auto; align-items: center; gap: 10px;
+  padding: 10px 14px 10px 14px; background: var(--panel); border-radius: 18px;
+}
+.fila:active { background: var(--panel-2); }
+.fila-hora { font-size: 1.2rem; font-weight: 800; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.fila-hora small { display: block; font-size: .72rem; font-weight: 600; color: var(--texto-2); }
+.fila-info { display: flex; flex-direction: column; min-width: 0; }
+.fila-info strong { font-size: 1.2rem; font-variant-numeric: tabular-nums; }
+.fila-info span { font-size: .85rem; color: var(--texto-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chip { padding: 6px 12px; border-radius: 999px; font-size: .82rem; font-weight: 700; }
+.chip.efectivo { background: rgba(52, 209, 122, .15); color: var(--efectivo); }
+.chip.yape { background: rgba(180, 123, 255, .17); color: var(--yape); }
+.vacio { margin: 36px 12px; text-align: center; color: var(--texto-2); line-height: 1.5; }
+
+/* Ajustes */
+.seccion { margin: 26px 2px 8px; font-size: .78rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--texto-2); }
+.ayuda { margin: 0 2px 12px; font-size: .88rem; color: var(--texto-2); line-height: 1.45; }
+
+.tarifa-ed { display: grid; gap: 8px; margin-bottom: 10px; padding: 12px; background: var(--panel); border-radius: 20px; }
+.tarifa-ed-fila { display: grid; grid-template-columns: auto 104px minmax(0, 1fr); align-items: center; gap: 8px; }
+.tarifa-ed-fila2 { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; }
+.prefijo { font-weight: 800; color: var(--texto-2); }
+.campo { width: 100%; height: 48px; padding: 0 14px; border-radius: 14px; border: 1px solid var(--linea); background: var(--bg); font-size: 1.05rem; }
+.campo.monto { font-size: 1.3rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.btn-texto { height: 44px; padding: 0 14px; border-radius: 12px; font-weight: 700; color: var(--peligro); }
+.btn-texto:active { background: var(--panel-2); }
+
+.boton { width: 100%; height: 52px; border-radius: 16px; background: var(--panel-2); font-weight: 700; }
+.boton:active { filter: brightness(1.25); }
+
+.grupo { display: grid; gap: 1px; overflow: hidden; border-radius: 20px; background: var(--linea); }
+.fila-sw, .fila-btn { width: 100%; min-height: 60px; display: flex; align-items: center; gap: 12px; padding: 10px 16px; background: var(--panel); text-align: left; }
+.tarifa-ed .fila-sw { min-height: 48px; padding: 4px 4px 4px 4px; background: none; }
+.fila-btn { font-weight: 600; }
+.fila-btn.peligro { color: var(--peligro); }
+.fila-sw:active, .fila-btn:active { background: var(--panel-2); }
+.fila-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; font-weight: 600; }
+.fila-txt small { margin-top: 2px; font-size: .8rem; font-weight: 400; color: var(--texto-2); }
+.sw { flex: none; position: relative; width: 50px; height: 30px; border-radius: 999px; background: #3a4656; transition: background-color .18s; }
+.sw::after { content: ""; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff; transition: transform .18s; }
+[aria-checked="true"] > .sw { background: var(--efectivo-relleno); }
+[aria-checked="true"] > .sw::after { transform: translateX(20px); }
+.estado-copia { margin: 10px 4px 0; font-size: .88rem; color: var(--texto-2); }
+.estado-copia.aviso { color: #ffb020; font-weight: 700; }
+.version { margin: 22px 0 0; text-align: center; font-size: .8rem; color: var(--texto-2); }
+
+/* ═════════════ Barra inferior ═════════════ */
+.tabs {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  min-height: var(--tabs-h); padding-bottom: env(safe-area-inset-bottom);
+  background: var(--panel); border-top: 1px solid var(--linea);
+}
+.tab { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: .74rem; font-weight: 700; color: var(--texto-2); }
+.tab svg { width: 26px; height: 26px; }
+.tab[aria-current="page"] { color: var(--texto); }
+.tab[data-aviso]::after { content: ""; position: absolute; top: 9px; left: calc(50% + 10px); width: 11px; height: 11px; border-radius: 50%; background: #ffb020; box-shadow: 0 0 0 2px var(--panel); }
+.tab[aria-current="page"]::before { content: ""; position: absolute; top: -1px; left: 26%; right: 26%; height: 3px; border-radius: 0 0 3px 3px; background: var(--a1); }
+
+/* ═════════════ Aviso y hoja inferior ═════════════ */
+.toast {
+  position: fixed; z-index: 40; left: 50%;
+  bottom: calc(var(--tabs-h) + 14px + env(safe-area-inset-bottom));
+  width: min(calc(100% - 24px), 520px);
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 10px 10px 16px;
+  background: #263141; border: 1px solid #34435a; border-radius: 20px;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, .5);
+  opacity: 0; transform: translate(-50%, 16px); pointer-events: none;
+  transition: opacity .2s, transform .2s;
+}
+.toast.visible { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+.toast-texto { flex: 1; min-width: 0; font-weight: 600; }
+.toast-btn { flex: none; height: 42px; padding: 0 16px; border-radius: 999px; background: rgba(255, 255, 255, .12); font-weight: 800; }
+
+.hoja { position: fixed; inset: 0; z-index: 50; display: flex; align-items: flex-end; justify-content: center; }
+.hoja-fondo { position: absolute; inset: 0; background: rgba(0, 0, 0, .6); animation: fundir .2s ease-out; }
+.hoja-panel {
+  position: relative; width: min(100%, 560px);
+  padding: 20px 16px calc(16px + env(safe-area-inset-bottom));
+  background: var(--panel); border-radius: 28px 28px 0 0;
+  animation: subir .22s ease-out;
+}
+.hoja-panel h2 { margin: 0; font-size: 1.35rem; }
+.hoja-panel p { margin: 4px 0 16px; color: var(--texto-2); line-height: 1.4; }
+.hoja-acciones { display: grid; gap: 8px; }
+.hoja-btn { height: 56px; border-radius: 18px; background: var(--panel-2); font-size: 1.05rem; font-weight: 700; }
+.hoja-btn.peligro { color: var(--peligro); }
+.hoja-btn.cancelar { background: none; color: var(--texto-2); }
+@keyframes fundir { from { opacity: 0; } }
+@keyframes subir { from { transform: translateY(40px); opacity: 0; } }
+
+/* ═════════════ Celulares bajitos o con la barra del navegador visible ═════════════ */
+@media (max-height: 700px) and (orientation: portrait) {
+  :root { --tabs-h: 56px; }
+  #vista-cobrar { gap: 8px; padding-top: max(8px, env(safe-area-inset-top)); }
+  .resumen-etq { display: none; }
+  .resumen-total { font-size: 1.8rem; }
+  .resumen-det { font-size: .8rem; }
+  .metodo { padding: 5px; }
+  .metodo button { height: 42px; font-size: 1.05rem; }
+  .tarifas, .grandes { gap: 8px; }
+  .chicas { gap: 8px; }
+  .tarifa.chica { height: 56px; }
+  .chica .monto { font-size: 1.6rem; }
+  .ultimo { min-height: 54px; padding-top: 5px; padding-bottom: 5px; }
+  .btn-mini { height: 42px; }
+}
+
+@media (max-width: 420px) {
+  .ultimo { gap: 6px; padding-left: 14px; }
+  .ultimo-acciones { gap: 5px; }
+  .btn-mini { padding: 0 12px; font-size: .9rem; }
+}
+@media (max-width: 359px) {
+  .ultimo { padding-left: 12px; }
+  .btn-mini { padding: 0 10px; font-size: .84rem; }
+}
+
+/* ═════════════ Celular en horizontal ═════════════ */
+@media (orientation: landscape) and (max-height: 520px) {
+  :root { --tabs-h: 54px; }
+  #vista-cobrar.activa {
+    display: grid;
+    grid-template-columns: minmax(230px, 34%) minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr);
+    column-gap: 14px; row-gap: 8px;
+  }
+  #vista-cobrar .resumen { grid-column: 1; grid-row: 1; }
+  #vista-cobrar .metodo { grid-column: 1; grid-row: 2; }
+  #vista-cobrar .ultimo { grid-column: 1; grid-row: 3; align-self: end; flex-direction: column; align-items: stretch; padding: 10px; }
+  #vista-cobrar .ultimo-acciones .btn-mini { flex: 1; }
+  #vista-cobrar .ultimo-info span { white-space: normal; }
+  #vista-cobrar .tarifas { grid-column: 2; grid-row: 1 / -1; }
+  .grandes { flex-direction: row; }
+  .tab { flex-direction: row; gap: 8px; }
+}
+
+/* ═════════════ Pantalla ancha (PC): se muestra como columna de celular ═════════════ */
+@media (min-width: 900px) and (min-height: 600px) {
+  body { display: flex; justify-content: center; background: #06090d; }
+  #app { width: min(100%, 520px); background: var(--bg); box-shadow: 0 0 0 1px var(--linea); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
