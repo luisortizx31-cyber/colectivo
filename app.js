@@ -331,6 +331,9 @@ function renderCobros() {
   vacio.textContent = diaSel === hoyClave
     ? 'Aún no hay cobros hoy. Cada precio que toques en Cobrar aparecerá aquí con su hora.'
     : 'No hay cobros registrados este día.';
+
+  $('#borrar-fila').hidden = cobros.length === 0;            // sin historial no hay nada que borrar
+  $('#btn-borrar-dia').disabled = lista.length === 0;
 }
 
 function abrirCobro(c) {
@@ -549,20 +552,41 @@ function aplicarDatos() {
   refrescarTodo();
 }
 
-function borrarTodo() {
-  abrirHoja('¿Borrar todos los cobros?', `Se eliminarán ${plural(cobros.length, 'cobro', 'cobros')} de este teléfono. Si los necesitas, guarda una copia de seguridad primero.`, [
-    {
-      etq: 'Sí, borrar todo', tipo: 'peligro',
-      fn: () => {
-        const copia = cobros;
-        cobros = [];
-        ultimo = null;
-        guardarCobros();
-        refrescarTodo();
-        toast('Se borraron todos los cobros', [{ etq: 'Deshacer', fn: () => { cobros = copia; guardarCobros(); refrescarTodo(); } }], { ms: 10000 });
-      },
+/** Borra un grupo de cobros: pide confirmar y deja 10 segundos para deshacer (el deshacer los devuelve a su lugar). */
+function borrarGrupo(quitar, titulo, detalle, botonSi, aviso) {
+  abrirHoja(titulo, detalle, [{
+    etq: botonSi, tipo: 'peligro',
+    fn: () => {
+      const fuera = new Set(quitar);
+      cobros = cobros.filter(c => !fuera.has(c));
+      ultimo = null;
+      guardarCobros();
+      refrescarTodo();
+      toast(aviso, [{ etq: 'Deshacer', fn: () => { cobros = cobros.concat(quitar).sort((a, b) => a.ts - b.ts); guardarCobros(); refrescarTodo(); } }], { ms: 10000 });
     },
-  ]);
+  }]);
+}
+
+/** Borra el historial del día que se está viendo en Cobros. */
+function borrarDia() {
+  const clave = diaSel, lista = cobrosDelDia(clave);
+  if (!lista.length) return;
+  const cuando = clave === hoyClave ? 'de hoy' : clave === sumarDias(hoyClave, -1) ? 'de ayer' : 'del ' + fechaTexto(clave);
+  const total = lista.reduce((suma, c) => suma + c.monto, 0);
+  borrarGrupo(lista, `¿Borrar los cobros ${cuando}?`,
+    `Vas a eliminar ${plural(lista.length, 'cobro', 'cobros')} (${soles(total)}). Los demás días no se tocan.`,
+    'Sí, borrar este día',
+    `Listo: ${plural(lista.length, 'cobro borrado', 'cobros borrados')} ${cuando}.`);
+}
+
+/** Borra el historial de todos los días. */
+function borrarTodo() {
+  if (!cobros.length) return;
+  const n = cobros.length, dias = new Set(cobros.map(c => c.dia)).size;
+  borrarGrupo(cobros.slice(), '¿Borrar todo el historial?',
+    `Vas a eliminar ${plural(n, 'cobro', 'cobros')} de ${plural(dias, 'día', 'días')}. Si los necesitas, guarda antes una copia de seguridad en Ajustes.`,
+    'Sí, borrar todo el historial',
+    `Listo: ${plural(n, 'cobro borrado', 'cobros borrados')}.`);
 }
 
 /* ───────────── Avisos y hoja inferior ───────────── */
@@ -693,6 +717,8 @@ function iniciar() {
   });
   $('#btn-actualizar').addEventListener('click', () => location.reload());
   $('#btn-borrar').addEventListener('click', () => (cobros.length ? borrarTodo() : toast('No hay cobros que borrar.')));
+  $('#btn-borrar-dia').addEventListener('click', borrarDia);
+  $('#btn-borrar-todo').addEventListener('click', borrarTodo);
 
   // Hoja inferior
   $('#hoja-fondo').addEventListener('click', cerrarHoja);

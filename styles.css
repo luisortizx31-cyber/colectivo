@@ -182,6 +182,15 @@ svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width:
 .chip-dest { padding: 6px 12px; border-radius: 999px; background: var(--panel); font-size: .85rem; color: var(--texto-2); }
 .chip-dest b { color: var(--texto); }
 
+.borrar-fila { display: flex; gap: 8px; margin: 0 0 14px; }
+.btn-borrar {
+  flex: 1; min-height: 44px; padding: 6px 12px; border-radius: 999px;
+  border: 1px solid rgba(255, 107, 102, .45); color: var(--peligro);
+  font-size: .88rem; font-weight: 700; line-height: 1.2;
+}
+.btn-borrar:active { background: rgba(255, 107, 102, .14); }
+.btn-borrar:disabled { opacity: .35; cursor: default; }
+
 .lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .fila {
   width: 100%; min-height: 64px; text-align: left;
