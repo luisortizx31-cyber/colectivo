@@ -257,18 +257,27 @@ function botonTarifa(t) {
   );
 }
 
+/** Botón de monto libre, para un pasaje distinto a las tarifas fijas (p. ej. un taxi). Siempre está visible. */
+function botonTaxi() {
+  return h('button', { type: 'button', class: 'taxi', 'aria-label': 'Cobrar un taxi por un monto distinto' },
+    h('span', { class: 'taxi-txt' }, 'Taxi'),
+    h('span', { class: 'taxi-sub' }, 'Monto distinto')
+  );
+}
+
 function construirTarifas() {
   const cont = $('#tarifas');
   cont.textContent = '';
   if (!tarifas.length) {
     cont.append(h('p', { class: 'sin-tarifas' }, 'Aún no tienes tarifas. Agrégalas en Ajustes.'));
-    return;
+  } else {
+    const ordenadas = tarifas.slice().sort((a, b) => b.monto - a.monto);
+    const grandes = ordenadas.filter(t => t.grande);
+    const chicas = ordenadas.filter(t => !t.grande);
+    if (grandes.length) cont.append(h('div', { class: 'grandes' }, ...grandes.map(botonTarifa)));
+    if (chicas.length) cont.append(h('div', { class: 'chicas' + (grandes.length ? '' : ' solas') }, ...chicas.map(botonTarifa)));
   }
-  const ordenadas = tarifas.slice().sort((a, b) => b.monto - a.monto);
-  const grandes = ordenadas.filter(t => t.grande);
-  const chicas = ordenadas.filter(t => !t.grande);
-  if (grandes.length) cont.append(h('div', { class: 'grandes' }, ...grandes.map(botonTarifa)));
-  if (chicas.length) cont.append(h('div', { class: 'chicas' + (grandes.length ? '' : ' solas') }, ...chicas.map(botonTarifa)));
+  cont.append(botonTaxi());
   actualizarHoy();
 }
 
@@ -318,6 +327,24 @@ function cobrar(t, boton) {
   refrescarTodo();
   animar(boton);
   feedback(m);
+}
+
+/** Un taxi (u otro pasaje) de monto distinto a las tarifas fijas: se escribe el precio y se cobra con el
+    modo Efectivo/Yape que esté seleccionado arriba. */
+function cobrarTaxi(boton) {
+  abrirHoja('Taxi', `¿Cuánto cobraste? Se registra como ${nombreMetodo(metodo)}.`, [
+    {
+      etq: 'Cobrar', pide: true,
+      fn: monto => {
+        const m = metodo;
+        ultimo = { c: agregarCobro({ monto, etiqueta: 'Taxi', metodo: m }) };
+        if (m === 'yape' && ajustes.volverEfectivo) fijarMetodo('efectivo');
+        refrescarTodo();
+        animar(boton);
+        feedback(m);
+      },
+    },
+  ], { valor: '', etiqueta: 'Monto del taxi en soles' });
 }
 
 function refrescarTodo() {
@@ -857,6 +884,8 @@ function iniciar() {
 
   // Cobrar
   $('#tarifas').addEventListener('click', e => {
+    const taxi = e.target.closest('.taxi');
+    if (taxi) { cobrarTaxi(taxi); return; }
     const b = e.target.closest('.tarifa');
     const t = b && tarifas.find(x => x.id === b.dataset.id);
     if (t) cobrar(t, b);

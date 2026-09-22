@@ -17,6 +17,7 @@
   --yape-relleno: #7e30d0;
   --peligro: #ff6b66;
   --gasto: #ffb020;
+  --taxi: #3da9fc;
   --tabs-h: 64px;
 }
 
@@ -138,6 +139,19 @@ svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width:
 .chica .cuenta { top: 8px; right: 14px; font-size: .8rem; padding: 1px 8px; }
 .destello { position: absolute; inset: 0; border-radius: inherit; background: #fff; opacity: 0; pointer-events: none; }
 .sin-tarifas { margin: auto; padding: 0 24px; text-align: center; color: var(--texto-2); font-size: 1.1rem; }
+
+/* Botón "Taxi": precio libre, distinto a las tarifas fijas */
+.taxi {
+  position: relative; overflow: hidden; flex: none;
+  width: 100%; min-height: 58px;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  border: 1px dashed rgba(61, 169, 252, .6); border-radius: 30px;
+  color: var(--taxi);
+  transition: transform .09s ease, filter .09s ease;
+}
+.taxi:active { transform: scale(.98); background: rgba(61, 169, 252, .14); }
+.taxi-txt { font-size: 1.15rem; font-weight: 800; }
+.taxi-sub { font-size: .85rem; font-weight: 600; opacity: .85; }
 
 /* Barra “último cobro” */
 .ultimo {
@@ -321,6 +335,8 @@ svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width:
   .chicas { gap: 8px; }
   .tarifa.chica { height: 56px; }
   .chica .monto { font-size: 1.6rem; }
+  .taxi { min-height: 46px; }
+  .taxi-sub { display: none; }
   .ultimo { min-height: 54px; padding-top: 5px; padding-bottom: 5px; }
   .btn-mini { height: 42px; }
 }
