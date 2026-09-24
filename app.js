@@ -621,16 +621,33 @@ function filaVuelta(v, n) {
     : h('button', { type: 'button', class: 'fila-vuelta', onclick: () => abrirVuelta(v, n) }, ...contenido));
 }
 
-/** Quitar el registro de una vuelta ya terminada. Los cobros de ese rato no se tocan, solo deja de agruparlos. */
+/** Quitar una vuelta ya terminada junto con los cobros hechos durante ella: el dinero de esa vuelta
+    desaparece del total del día (se puede deshacer, que devuelve la vuelta y esos cobros). */
 function abrirVuelta(v, n) {
   const rango = `${horaTexto(v.inicio)} – ${horaTexto(v.fin)} · ${duracionTexto(v.fin - v.inicio)}`;
-  abrirHoja(`Vuelta ${n}`, `${fechaTexto(v.dia)} · ${rango} · ${soles(dineroVuelta(v))}`, [
+  const cobrosVuelta = cobros.filter(c => c.ts >= v.inicio && c.ts <= v.fin);
+  const monto = sumar(cobrosVuelta);
+  abrirHoja(`Vuelta ${n}`, `${fechaTexto(v.dia)} · ${rango}. Vas a eliminar ${plural(cobrosVuelta.length, 'cobro', 'cobros')} (${soles(monto)}) de esta vuelta.`, [
     {
-      etq: 'Quitar esta vuelta', tipo: 'peligro',
+      etq: 'Quitar la vuelta y sus cobros', tipo: 'peligro',
       fn: () => {
         quitarVuelta(v);
+        const fuera = new Set(cobrosVuelta);
+        cobros = cobros.filter(c => !fuera.has(c));
+        guardarCobros();
+        if (ultimo && ultimo.c && fuera.has(ultimo.c)) ultimo = null;   // por si el "último cobro" era uno de estos
         refrescarTodo();
-        toast('Vuelta quitada. Los cobros de ese rato no cambian.', [{ etq: 'Deshacer', fn: () => { vueltas.push(v); vueltas.sort((a, b) => a.inicio - b.inicio); guardarVueltas(); refrescarTodo(); } }]);
+        toast(`Vuelta quitada: ${plural(cobrosVuelta.length, 'cobro', 'cobros')} borrados (${soles(monto)}).`, [{
+          etq: 'Deshacer',
+          fn: () => {
+            vueltas.push(v);
+            vueltas.sort((a, b) => a.inicio - b.inicio);
+            guardarVueltas();
+            cobros = cobros.concat(cobrosVuelta).sort((a, b) => a.ts - b.ts);
+            guardarCobros();
+            refrescarTodo();
+          },
+        }], { ms: 10000 });
       },
     },
   ]);

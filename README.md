@@ -1,6 +1,6 @@
 # Colectivo
 
-App para registrar los cobros del colectivo: tocas el precio (S/ 3.50 Centro, 3.00 Terminal, 2.50 Villa María, 2.00 Cerca…) y queda guardado con la hora, la fecha y si fue **Efectivo** o **Yape**. Para un pasaje de monto distinto (por ejemplo un taxi) está el botón **Taxi**, donde escribes cuánto cobraste. En **Ajustes** puedes activar **Agrupar cobros por vuelta**: tocas *Iniciar vuelta* al salir y *Finalizar* al volver, y ves cuánto dejó esa vuelta (los cobros de fuera de una vuelta se siguen sumando igual al total del día). En **Cobros** anotas la gasolina y el gas del día y te muestra la **ganancia** (lo cobrado menos los gastos). Pensada para usarla con una mano en el celular. Funciona sin internet.
+App para registrar los cobros del colectivo: tocas el precio (S/ 3.50 Centro, 3.00 Terminal, 2.50 Villa María, 2.00 Cerca…) y queda guardado con la hora, la fecha y si fue **Efectivo** o **Yape**. Para un pasaje de monto distinto (por ejemplo un taxi) está el botón **Taxi**, donde escribes cuánto cobraste. En **Ajustes** puedes activar **Agrupar cobros por vuelta**: tocas *Iniciar vuelta* al salir y *Finalizar* al volver, y ves cuánto dejó esa vuelta. En **Cobros**, si quitas una vuelta se borran también los cobros de ese rato (baja el total del día; se puede deshacer). En **Cobros** anotas la gasolina y el gas del día y te muestra la **ganancia** (lo cobrado menos los gastos). Pensada para usarla con una mano en el celular. Funciona sin internet.
 
 ## Usarla
 
