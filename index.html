@@ -41,6 +41,17 @@
         <button type="button" role="radio" data-metodo="yape" aria-checked="false">Yape</button>
       </div>
 
+      <div class="vuelta" id="vuelta-card" hidden>
+        <button type="button" class="vuelta-iniciar" id="btn-iniciar-vuelta">Iniciar vuelta</button>
+        <div class="vuelta-activa" id="vuelta-activa" hidden>
+          <div class="vuelta-info">
+            <strong id="vuelta-monto">S/ 0.00</strong>
+            <span id="vuelta-detalle">Vuelta en curso</span>
+          </div>
+          <button type="button" class="btn-mini" id="btn-fin-vuelta">Finalizar</button>
+        </div>
+      </div>
+
       <div class="tarifas" id="tarifas"></div>
 
       <div class="ultimo" aria-live="polite">
@@ -87,6 +98,16 @@
 
         <div class="chips" id="dia-destinos"></div>
 
+        <section class="vueltas" id="vueltas-seccion" aria-labelledby="vueltas-tit" hidden>
+          <div class="vueltas-cab">
+            <h3 id="vueltas-tit">Vueltas del día</h3>
+            <strong id="vueltas-total">S/ 0.00</strong>
+          </div>
+          <ul class="vueltas-lista" id="vueltas-lista"></ul>
+          <p class="vueltas-vacio" id="vueltas-vacio">Aún no registras vueltas hoy. Toca “Iniciar vuelta” en Cobrar cuando salgas.</p>
+          <p class="vueltas-sin" id="vueltas-sin" hidden></p>
+        </section>
+
         <section class="gastos" aria-labelledby="gastos-tit">
           <div class="gastos-cab">
             <h3 id="gastos-tit">Gastos del día</h3>
@@ -119,6 +140,9 @@
 
         <h2 class="seccion">Al cobrar</h2>
         <div class="grupo">
+          <button type="button" class="fila-sw" role="switch" data-ajuste="porVueltas" aria-checked="false">
+            <span class="fila-txt">Agrupar cobros por vuelta<small>Marca cuándo empieza y termina cada vuelta para ver lo que ganaste en ella</small></span><i class="sw"></i>
+          </button>
           <button type="button" class="fila-sw" role="switch" data-ajuste="volverEfectivo" aria-checked="true">
             <span class="fila-txt">Volver a Efectivo tras un Yape<small>Así no se queda en Yape por error</small></span><i class="sw"></i>
           </button>

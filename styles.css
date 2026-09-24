@@ -18,6 +18,7 @@
   --peligro: #ff6b66;
   --gasto: #ffb020;
   --taxi: #3da9fc;
+  --vuelta: #22c1dc;
   --tabs-h: 64px;
 }
 
@@ -140,6 +141,22 @@ svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width:
 .destello { position: absolute; inset: 0; border-radius: inherit; background: #fff; opacity: 0; pointer-events: none; }
 .sin-tarifas { margin: auto; padding: 0 24px; text-align: center; color: var(--texto-2); font-size: 1.1rem; }
 
+/* Control de vueltas (Cobrar): "Iniciar vuelta" o el resumen en vivo de la vuelta en curso */
+.vuelta-iniciar {
+  width: 100%; min-height: 50px;
+  border: 1px dashed rgba(34, 193, 220, .6); border-radius: 26px;
+  color: var(--vuelta); font-size: 1.05rem; font-weight: 800;
+}
+.vuelta-iniciar:active { background: rgba(34, 193, 220, .14); }
+.vuelta-activa {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  min-height: 50px; padding: 8px 8px 8px 16px;
+  background: rgba(34, 193, 220, .12); border: 1px solid rgba(34, 193, 220, .4); border-radius: 26px;
+}
+.vuelta-info { display: flex; flex-direction: column; min-width: 0; }
+.vuelta-info strong { font-size: 1.1rem; font-variant-numeric: tabular-nums; color: var(--vuelta); }
+.vuelta-info span { font-size: .82rem; color: var(--texto-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
 /* Botón "Taxi": precio libre, distinto a las tarifas fijas */
 .taxi {
   position: relative; overflow: hidden; flex: none;
@@ -210,6 +227,20 @@ svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width:
 .gastos-botones { display: flex; gap: 8px; margin-top: 12px; }
 .btn-gasto { flex: 1; min-height: 48px; border: 1px solid rgba(255, 176, 32, .55); border-radius: 999px; color: var(--gasto); font-size: 1rem; font-weight: 800; }
 .btn-gasto:active { background: rgba(255, 176, 32, .15); }
+
+.vueltas { margin: 0 0 14px; padding: 12px 14px 14px; background: var(--panel); border-radius: 20px; }
+.vueltas-cab { display: flex; justify-content: space-between; align-items: baseline; }
+.vueltas-cab h3 { margin: 0; font-size: .74rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--texto-2); }
+.vueltas-cab strong { font-size: 1.2rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.vueltas-lista { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+.fila-vuelta { width: 100%; min-height: 52px; display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 14px; background: var(--panel-2); border-radius: 14px; text-align: left; }
+.fila-vuelta:active { filter: brightness(1.2); }
+.fila-vuelta.activa { background: rgba(34, 193, 220, .14); border: 1px solid rgba(34, 193, 220, .4); }
+.vuelta-nombre { display: flex; flex-direction: column; font-weight: 700; }
+.vuelta-nombre small { margin-top: 2px; font-size: .78rem; font-weight: 500; color: var(--texto-2); }
+.fila-vuelta strong { font-variant-numeric: tabular-nums; }
+.vueltas-vacio { margin: 8px 0 0; font-size: .88rem; line-height: 1.4; color: var(--texto-2); }
+.vueltas-sin { margin: 8px 0 0; font-size: .85rem; color: var(--texto-2); }
 
 .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
 .chips:empty { display: none; }
@@ -337,6 +368,7 @@ svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width:
   .chica .monto { font-size: 1.6rem; }
   .taxi { min-height: 46px; }
   .taxi-sub { display: none; }
+  .vuelta-iniciar, .vuelta-activa { min-height: 44px; }
   .ultimo { min-height: 54px; padding-top: 5px; padding-bottom: 5px; }
   .btn-mini { height: 42px; }
 }
@@ -357,12 +389,17 @@ svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width:
   #vista-cobrar.activa {
     display: grid;
     grid-template-columns: minmax(230px, 34%) minmax(0, 1fr);
-    grid-template-rows: auto auto minmax(0, 1fr);
+    /* La fila de "último cobro" es un contenedor flex con varias líneas: la cuadrícula a veces le calcula
+       un alto "auto" más chico que lo que en verdad ocupa, y entonces queda montada sobre la fila de arriba.
+       Por eso lleva un mínimo fijo generoso en vez de confiar solo en "auto". */
+    grid-template-rows: auto auto auto minmax(96px, auto);
     column-gap: 14px; row-gap: 8px;
   }
   #vista-cobrar .resumen { grid-column: 1; grid-row: 1; }
   #vista-cobrar .metodo { grid-column: 1; grid-row: 2; }
-  #vista-cobrar .ultimo { grid-column: 1; grid-row: 3; align-self: end; flex-direction: column; align-items: stretch; padding: 10px; }
+  #vista-cobrar .vuelta { grid-column: 1; grid-row: 3; }
+  #vista-cobrar .vuelta-activa { flex-direction: column; align-items: stretch; gap: 6px; }
+  #vista-cobrar .ultimo { grid-column: 1; grid-row: 4; align-self: end; flex-direction: column; align-items: stretch; padding: 10px; }
   #vista-cobrar .ultimo-acciones .btn-mini { flex: 1; }
   #vista-cobrar .ultimo-info span { white-space: normal; }
   #vista-cobrar .tarifas { grid-column: 2; grid-row: 1 / -1; }
